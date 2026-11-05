@@ -2,12 +2,13 @@ import { describe, expect, it } from "vitest";
 import { buildContentSecurityPolicy, readSelfHostedSignalOrigin } from "./content-security-policy";
 
 describe("buildContentSecurityPolicy", () => {
-  it("allows the production analytics endpoint", () => {
+  it("does not allow the remote analytics endpoint", () => {
     const policy = buildContentSecurityPolicy(true);
 
     expect(policy).toContain(
-      "connect-src 'self' openbot-attachment: openbot-remote-attachment: https://analytics.openbot.run ws://127.0.0.1:* wss://*.openbot.run",
+      "connect-src 'self' openbot-attachment: openbot-remote-attachment: ws://127.0.0.1:* wss://*.openbot.run",
     );
+    expect(policy).not.toContain("analytics.openbot.run");
     expect(policy.split("; ").find((directive) => directive.startsWith("connect-src "))).not.toContain("localhost");
   });
 

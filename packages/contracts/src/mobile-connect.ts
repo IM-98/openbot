@@ -136,6 +136,7 @@ function normalizeMobileConnectApiUrl(value: string): string | null {
 
 export function isMobileConnectDevelopmentHost(hostname: string): boolean {
   if (hostname === "127.0.0.1" || hostname === "localhost") return true;
+  if (hostname.endsWith(".ts.net") || hostname.endsWith(".local")) return true;
   const octets = hostname.split(".");
   if (octets.length !== 4 || octets.some((octet) => !/^\d{1,3}$/u.test(octet))) return false;
   const values = octets.map(Number);
@@ -143,6 +144,7 @@ export function isMobileConnectDevelopmentHost(hostname: string): boolean {
   const [first, second] = values;
   return (
     first === 10 ||
+    (first === 100 && second !== undefined && second >= 64 && second <= 127) ||
     (first === 172 && second !== undefined && second >= 16 && second <= 31) ||
     (first === 192 && second === 168)
   );

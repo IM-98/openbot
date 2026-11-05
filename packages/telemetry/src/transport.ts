@@ -7,10 +7,15 @@ export function openPanelTransport(options: {
   endpoint?: string;
   fetch?: typeof fetch;
 }): ReportTransport {
+  // Never send telemetry to a remote server; only allow explicit local test/capture endpoints or custom fetch mocks.
+  if (!options.endpoint && !options.fetch) {
+    return () => telemetryIO(async () => true);
+  }
   const send = options.fetch ?? globalThis.fetch;
   return (report, signal) =>
     telemetryIO(async () => {
-      const response = await send(options.endpoint ?? "https://analytics.openbot.run/api/track", {
+      if (!options.endpoint) return true;
+      const response = await send(options.endpoint, {
         method: "POST",
         signal,
         credentials: "omit",

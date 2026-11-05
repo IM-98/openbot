@@ -13,7 +13,6 @@ import {
 } from "@openbot/telemetry";
 import { indexedReportStorage } from "@openbot/telemetry/browser";
 import { Effect } from "effect";
-import { version } from "../../../package.json";
 
 /** The desktop schema generation. Product events and failure reports send the same value. */
 export const ANALYTICS_SCHEMA_VERSION = ANALYTICS_GENERATIONS.desktop;
@@ -42,12 +41,12 @@ export function configureDesktopReports(
   user: Pick<CentralAuthUser, "id" | "email"> | null,
 ): void {
   const capture = info.analyticsCaptureUrl;
-  if (capture === undefined && (!import.meta.env.PROD || info.variant !== "production")) return;
+  if (capture === undefined) return;
   queue ??= new ReportQueue(
     indexedReportStorage("openbot-desktop-error-reports-v1"),
     openPanelTransport({
       clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2",
-      ...(capture === undefined ? {} : { endpoint: `${capture}/track` }),
+      endpoint: `${capture}/track`,
     }),
     {
       surface: "desktop",
@@ -129,14 +128,6 @@ function webAnalyticsDefault(): boolean {
 
 export function configureWebReports(user: Pick<CentralAuthUser, "id" | "email"> | null): void {
   webSignedIn = user !== null;
-  if (!import.meta.env.PROD || window.location.origin !== "https://openbot.run") return;
-  queue ??= new ReportQueue(
-    indexedReportStorage("openbot-web-error-reports-v1"),
-    openPanelTransport({ clientId: "6c989975-87ef-4f0c-857e-ab449a65b5c2" }),
-    { surface: "web", platform: "web", app_version: version, event_schema_version: ANALYTICS_GENERATIONS.web },
-  );
-  installId = webAnalyticsInstallId();
-  configureErrorReports(webReportsEnabled(), user?.id ?? null);
 }
 
 /**

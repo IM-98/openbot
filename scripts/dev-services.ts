@@ -699,6 +699,7 @@ function isPrivateIpv4(address: string): boolean {
   const [first, second] = values;
   return (
     first === 10 ||
+    (first === 100 && second !== undefined && second >= 64 && second <= 127) ||
     (first === 172 && second !== undefined && second >= 16 && second <= 31) ||
     (first === 192 && second === 168)
   );

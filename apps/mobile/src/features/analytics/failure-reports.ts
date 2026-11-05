@@ -1,69 +1,15 @@
 import {
-  ANALYTICS_GENERATIONS,
   classifyFailure,
   type FailureProperties,
-  openPanelTransport,
-  ReportQueue,
-  type ReportStorage,
-  telemetryIO,
+  type ReportQueue,
 } from "@openbot/telemetry";
 import { errorReference } from "@openbot/user-errors";
 import { Effect } from "effect";
-import * as Application from "expo-application";
-import { randomUUID } from "expo-crypto";
-import { Alert, type AlertButton, Platform } from "react-native";
+import { Alert, type AlertButton } from "react-native";
 import { currentText } from "@/shared/lib/text";
 
-const storage: ReportStorage = {
-  read: () =>
-    telemetryIO(async () => {
-      const { File, Paths } = await import("expo-file-system");
-      const file = new File(Paths.document, "openbot-error-reports-v1.json");
-      if (!file.exists) return null;
-      try {
-        return JSON.parse(await file.text());
-      } catch (error) {
-        if (error instanceof SyntaxError) return null;
-        throw error;
-      }
-    }),
-  write: (value) =>
-    telemetryIO(async () => {
-      const { File, Paths } = await import("expo-file-system");
-      const file = new File(Paths.document, "openbot-error-reports-v1.json");
-      const temporary = new File(Paths.document, "openbot-error-reports-v1.tmp");
-      await temporary.write(JSON.stringify(value));
-      await temporary.move(file, { overwrite: true });
-    }),
-};
-
-let reports: ReportQueue | undefined;
 export function mobileReportQueue(): ReportQueue | undefined {
-  if (reports) return reports;
-  const clientId = process.env.EXPO_PUBLIC_OPENPANEL_CLIENT_ID;
-  const clientSecret = process.env.EXPO_PUBLIC_OPENPANEL_CLIENT_SECRET;
-  if (
-    __DEV__ ||
-    process.env.EXPO_PUBLIC_APP_ENV !== "production" ||
-    !clientId ||
-    !clientSecret ||
-    (Platform.OS !== "ios" && Platform.OS !== "android")
-  )
-    return undefined;
-  reports = new ReportQueue(
-    storage,
-    openPanelTransport({ clientId, clientSecret }),
-    {
-      surface: "mobile",
-      platform: Platform.OS,
-      app_version: Application.nativeApplicationVersion ?? "unknown",
-      event_schema_version: ANALYTICS_GENERATIONS.mobile,
-    },
-    Date.now,
-    Math.random,
-    randomUUID,
-  );
-  return reports;
+  return undefined;
 }
 
 export function reportMobileNotification(

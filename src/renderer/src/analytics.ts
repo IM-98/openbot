@@ -24,17 +24,14 @@ import {
 } from "@openbot/contracts/ipc";
 import { isBoolean, isDynamicRecord, isFunction, isNumber, isOneOf, isString } from "@openbot/contracts/runtime-values";
 import { normalizeEmailAddress } from "@openbot/contracts/validation";
-import { ANALYTICS_GENERATIONS } from "@openbot/telemetry";
 import { OpenPanelBase, type OpenPanelOptions } from "@openpanel/web";
 import {
   ANALYTICS_SCHEMA_VERSION,
   configureDesktopReports,
   configureErrorReports,
-  webAnalyticsInstallId,
 } from "./error-reports";
 import { MARKETPLACE_PLUGINS } from "./features/settings/marketplace-plugin-catalog";
 
-const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 const MAX_PENDING_EVENTS = 100;
 const CURATED_LISTING_PATTERN = /^openbot-curated-(?:skill|agent)-([a-z0-9][a-z0-9-]{0,63})$/u;
@@ -728,8 +725,8 @@ const UPDATE_PHASES = new Set([
   "unsupported",
 ]);
 
-function shouldEnableDesktopAnalytics(appInfo: AppInfo, productionBuild: boolean): boolean {
-  return appInfo.analyticsCaptureUrl !== undefined || (productionBuild && appInfo.variant === "production");
+function shouldEnableDesktopAnalytics(appInfo: AppInfo, _productionBuild: boolean): boolean {
+  return appInfo.analyticsCaptureUrl !== undefined;
 }
 
 function sanitizeDesktopAnalyticsEvent(
@@ -859,14 +856,15 @@ class DesktopAnalytics {
   configure(appInfo: AppInfo): boolean {
     configureDesktopReports(appInfo, this.#trackingEnabled, this.#identity);
     if (this.#client) return true;
-    if (!shouldEnableDesktopAnalytics(appInfo, this.#productionBuild)) {
+    const captureUrl = appInfo.analyticsCaptureUrl;
+    if (!captureUrl || !shouldEnableDesktopAnalytics(appInfo, this.#productionBuild)) {
       this.#disabled = true;
       this.#pending = [];
       return false;
     }
     try {
       const clientOptions = {
-        apiUrl: appInfo.analyticsCaptureUrl ?? OPENPANEL_API_URL,
+        apiUrl: captureUrl,
         clientId: OPENPANEL_CLIENT_ID,
       };
       const client = this.#createClient(clientOptions);
@@ -896,39 +894,10 @@ class DesktopAnalytics {
    * Starts product analytics in the web client. It sends only from the production site, like the web
    * failure reports, and the web preference controls both.
    */
-  configureWeb(options: { version: string; user: AnalyticsIdentity | null; enabled: boolean }): boolean {
-    if (!this.#client && (!this.#productionBuild || window.location.origin !== "https://openbot.run")) {
-      this.#disabled = true;
-      this.#pending = [];
-      return false;
-    }
-    this.setTrackingEnabled(options.enabled);
-    if (!this.#client) {
-      try {
-        const clientOptions = { apiUrl: OPENPANEL_API_URL, clientId: OPENPANEL_CLIENT_ID };
-        const client = this.#createClient(clientOptions);
-        const anonymousClient = this.#createClient(clientOptions);
-        this.#installId = webAnalyticsInstallId();
-        const globalProperties = {
-          __referrer: "",
-          surface: "web",
-          environment: "production",
-          event_schema_version: ANALYTICS_GENERATIONS.web,
-          app_version: options.version,
-          platform: "web",
-        };
-        client.setGlobalProperties(globalProperties);
-        anonymousClient.setGlobalProperties(globalProperties);
-        this.#client = client;
-        this.#anonymousClient = anonymousClient;
-        if (this.#trackingEnabled && this.#identity) this.#identifyClient(this.#identity);
-        this.#flush();
-      } catch {
-        return false;
-      }
-    }
-    this.setUser(options.user);
-    return true;
+  configureWeb(_options: { version: string; user: AnalyticsIdentity | null; enabled: boolean }): boolean {
+    this.#disabled = true;
+    this.#pending = [];
+    return false;
   }
 
   setUser(user: AnalyticsIdentity | null): void {
