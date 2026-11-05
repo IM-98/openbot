@@ -27,6 +27,7 @@ import { decodeRecord, requiredString } from "@openbot/contracts/ipc-decoding";
 import type { LiveActivityRelayPush } from "@openbot/contracts/live-activity-relay";
 import {
   createMobileConnectUrl,
+  isMobileConnectDevelopmentHost,
   isMobileConnectHostBinding,
   type MobileConnectHostBinding,
 } from "@openbot/contracts/mobile-connect";
@@ -89,7 +90,7 @@ type AuthFetcher = (input: string | URL | Request, init?: RequestInit) => Promis
 
 interface CentralAuthManagerOptions {
   apiUrl: string;
-  mobileConnectApiUrl?: string;
+  mobileConnectApiUrl?: string | (() => string);
   storagePath: string;
   encrypt: (value: string) => Buffer;
   decrypt: (value: Buffer) => string;
@@ -407,12 +408,17 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
         });
       }
       return {
-        qrData: createMobileConnectUrl({ apiUrl: this.#options.mobileConnectApiUrl, ticket: result.ticket, host }),
+        qrData: createMobileConnectUrl({ apiUrl: this.#resolveMobileConnectApiUrl(), ticket: result.ticket, host }),
         expiresAt: result.expiresAt,
       };
     },
     (operation) => this.#owned(operation),
   ).bind(this);
+
+  #resolveMobileConnectApiUrl(): string {
+    const configured = this.#options.mobileConnectApiUrl;
+    return typeof configured === "function" ? configured() : configured;
+  }
 
   /** Spends the one-time code that this host shows, so it cannot sign in a phone. */
   readonly cancelMobileConnect = Effect.fn("CentralAuth.cancelMobileConnect")(
@@ -499,7 +505,7 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
   #mobileConnectLinkView(stored: StoredMobileConnectLink): MobileConnectLink {
     return {
       url: createMobileConnectUrl({
-        apiUrl: this.#options.mobileConnectApiUrl,
+        apiUrl: this.#resolveMobileConnectApiUrl(),
         ticket: stored.token,
         host: stored.host,
       }),
@@ -2439,9 +2445,9 @@ export class CentralAuthManager extends EventEmitter<CentralAuthEvents> {
 
 export function readCentralAuthApiUrl(value: string | undefined, fallback = "http://127.0.0.1:3100"): string {
   const url = new URL(value ?? fallback);
-  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost";
-  if ((url.protocol !== "https:" && !(url.protocol === "http:" && loopback)) || url.pathname !== "/") {
-    throw new Error("OPENBOT_AUTH_API_URL must be HTTPS or an HTTP loopback origin.");
+  const localOrPrivate = isMobileConnectDevelopmentHost(url.hostname);
+  if ((url.protocol !== "https:" && !(url.protocol === "http:" && localOrPrivate)) || url.pathname !== "/") {
+    throw new Error("OPENBOT_AUTH_API_URL must be HTTPS or a local/private HTTP origin.");
   }
   return url.origin;
 }

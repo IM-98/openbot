@@ -39,7 +39,7 @@ import { localDay, RESOURCE_ENUMS, RESOURCE_PROPERTY_NAMES, type ResourcePropert
 import { UNCLEAN_EXIT_ENUMS, type UncleanExitProperties } from "./run-marker";
 import { SERVICE_STEPS, START_KINDS, type StartupProperties } from "./startup-timing";
 
-const OPENPANEL_API_URL = "https://analytics.openbot.run/api";
+const OPENPANEL_API_URL = "http://127.0.0.1:9/disabled";
 const OPENPANEL_CLIENT_ID = "6c989975-87ef-4f0c-857e-ab449a65b5c2";
 // Node fetch sends no Origin, and OpenPanel answers 401 to a client with no allowed origin or
 // secret. The SDK drops a 401 in silence. Send the renderer's origin, which the project allows.

@@ -6,7 +6,7 @@ describe("buildContentSecurityPolicy", () => {
     const policy = buildContentSecurityPolicy(true);
 
     expect(policy).toContain(
-      "connect-src 'self' openbot-attachment: openbot-remote-attachment: ws://127.0.0.1:* wss://*.openbot.run",
+      "connect-src 'self' openbot-attachment: openbot-remote-attachment: http://127.0.0.1:* ws://127.0.0.1:*",
     );
     expect(policy).not.toContain("analytics.openbot.run");
     expect(policy.split("; ").find((directive) => directive.startsWith("connect-src "))).not.toContain("localhost");
@@ -15,7 +15,7 @@ describe("buildContentSecurityPolicy", () => {
   it.each([true, false])("allows loopback viewer frames when packaged=%s", (packaged) => {
     const directives = buildContentSecurityPolicy(packaged).split("; ");
     expect(directives.find((directive) => directive.startsWith("frame-src "))).toBe(
-      "frame-src 'self' openbot-attachment: openbot-remote-attachment: openbot-visual: openbot-remote-visual: https://*.openbot.run http://127.0.0.1:* http://localhost:*",
+      "frame-src 'self' openbot-attachment: openbot-remote-attachment: openbot-visual: openbot-remote-visual: http://127.0.0.1:* http://localhost:*",
     );
     expect(directives.find((directive) => directive.startsWith("script-src "))).toBe("script-src 'self'");
   });

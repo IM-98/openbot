@@ -219,11 +219,6 @@ try {
 
 const commandLineUserDataDirectory = app.commandLine.getSwitchValue("user-data-dir").trim();
 const developmentProfile = !app.isPackaged ? readDevelopmentProfile(process.env.OPENBOT_DEV_PROFILE) : null;
-const developmentRemoteRole =
-  !app.isPackaged &&
-  (process.env.OPENBOT_DEV_REMOTE_ROLE === "host" || process.env.OPENBOT_DEV_REMOTE_ROLE === "client")
-    ? process.env.OPENBOT_DEV_REMOTE_ROLE
-    : null;
 const developmentTestClientEnabled = !app.isPackaged && process.env.OPENBOT_DEV_TEST_CLIENT_ENABLED === "1";
 // Before any child process starts: agents must not run as part of a Claude Code session that started OpenBot.
 removeClaudeCodeSessionEnvironment(process.env);
@@ -234,6 +229,17 @@ const serverMode = takeServerModeEnvironment(process.env, app.isPackaged, proces
 // Always taken, so the owner password leaves the environment also when the flag is refused.
 const localServerChildEnvironment = takeLocalServerChildEnvironment(process.env, commandLineUserDataDirectory);
 const localServerChild = serverMode || hostedServer ? null : localServerChildEnvironment;
+const developmentRemoteRole: "host" | "client" | null =
+  !app.isPackaged &&
+  (process.env.OPENBOT_DEV_REMOTE_ROLE === "host" || process.env.OPENBOT_DEV_REMOTE_ROLE === "client")
+    ? process.env.OPENBOT_DEV_REMOTE_ROLE
+    : !serverMode &&
+        !hostedServer &&
+        !localServerChild &&
+        !process.env.OPENBOT_AUTH_API_URL?.trim() &&
+        process.env.OPENBOT_DEV_REMOTE_ROLE !== "none"
+      ? "host"
+      : null;
 const localServerControl = localServerChild
   ? openLocalServerControl(process.platform, (cause) =>
       logger.error("The local server has no control pipe from the desktop app:", toLogValue(cause)),

@@ -1,8 +1,9 @@
+import { isMobileConnectDevelopmentHost } from "./mobile-connect";
 import { isOpenBotTeamApiHostname } from "./validation";
 
-export const OPENBOT_INVITE_ORIGIN = "https://openbot.run";
+export const OPENBOT_INVITE_ORIGIN = "https://openbot.local";
 export const OPENBOT_INVITE_PATH = "/join";
-export const OPENBOT_CONTROL_PLANE_ORIGIN = "https://api.openbot.run";
+export const OPENBOT_CONTROL_PLANE_ORIGIN = "http://127.0.0.1:3100";
 
 /**
  * The finite deadline a permanent invitation carries. Invitation expiry travels the
@@ -79,8 +80,11 @@ export function selfHostedApiOrigin(apiUrl: string | undefined): string | undefi
 
 export function createInviteUrl(payload: InviteLinkPayload, options: InviteLinkOptions = {}): string {
   validatePayload(payload, options);
-  // Our website does not open a self-hosted invitation, and must not receive its token.
-  if (isSelfHostedApiUrl(new URL(payload.apiUrl), options)) return createOpenBotInviteUrl(payload, options);
+  const apiUrl = new URL(payload.apiUrl);
+  // Our website does not open a self-hosted or local invitation, and must not receive its token.
+  if (isSelfHostedApiUrl(apiUrl, options) || apiUrl.protocol === "http:") {
+    return createOpenBotInviteUrl(payload, options);
+  }
   const url = new URL(OPENBOT_INVITE_PATH, OPENBOT_INVITE_ORIGIN);
   writePayload(url, payload);
   return url.toString();
@@ -175,7 +179,7 @@ export function isValidRemoteApiUrl(value: string, options: InviteLinkOptions = 
     const localDevelopmentApi =
       options.allowLocalDevelopmentApiUrl === true &&
       url.protocol === "http:" &&
-      url.hostname === "localhost" &&
+      (url.hostname === "localhost" || isMobileConnectDevelopmentHost(url.hostname)) &&
       url.port !== "";
     return (
       url.username === "" &&

@@ -428,6 +428,7 @@ const TEAM_FILE = "openbot-team-server-v1.json";
 const TEAM_FILE_V2 = "openbot-team-server-v2.json";
 const REMOTE_SERVERS_FILE = "openbot-remote-servers-v1.json";
 const CENTRAL_AUTH_FILE = "openbot-central-auth-v1.bin";
+const LOCAL_CLOUD_FILE = "openbot-local-cloud-v1.json";
 const REMOTE_SESSIONS_FILE = "openbot-remote-sessions-v1.bin";
 const LEGACY_REMOTE_DESKTOP_CREDENTIAL_FILE = "openbot-remote-desktop-credential-v1.json";
 const REMOTE_DESKTOP_RUNTIME_SECRET_FILE = "openbot-remote-desktop-runtime-v1.json";
@@ -538,6 +539,7 @@ const TEARDOWN_ORDER = {
   analytics: 112,
   // After all account consumers have stopped.
   centralAuth: 115,
+  embeddedLocalCloud: 116,
   // After the service, so the turns that end while the services stop are still written.
   trace: 120,
   // After the service, so the lines its providers write while they stop are kept.
@@ -1049,13 +1051,26 @@ export async function createApplicationServices({
       }),
   });
   teardown.push(TEARDOWN_ORDER.dynamicIsland, "the Dynamic Island", () => dynamicIsland.destroy());
+  const embeddedLocalCloud =
+    !process.env.OPENBOT_AUTH_API_URL?.trim() && !hostedServer && !serverModeEnvironment && !localServerChild
+      ? await startEmbeddedLocalCloud({
+          storagePath: join(app.getPath("userData"), LOCAL_CLOUD_FILE),
+        })
+      : null;
+  if (embeddedLocalCloud) {
+    teardown.push(TEARDOWN_ORDER.embeddedLocalCloud, "the embedded local cloud", () => embeddedLocalCloud.close());
+  }
   const centralAuthApiUrl = readCentralAuthApiUrl(
     process.env.OPENBOT_AUTH_API_URL,
-    app.isPackaged ? "https://api.openbot.run" : "http://127.0.0.1:3100",
+    embeddedLocalCloud?.localApiUrl ?? "http://127.0.0.1:3100",
   );
   const centralAuth = new CentralAuthManager({
     apiUrl: centralAuthApiUrl,
-    mobileConnectApiUrl: readMobileConnectApiUrl(process.env.OPENBOT_MOBILE_AUTH_API_URL, centralAuthApiUrl),
+    mobileConnectApiUrl: process.env.OPENBOT_MOBILE_AUTH_API_URL?.trim()
+      ? readMobileConnectApiUrl(process.env.OPENBOT_MOBILE_AUTH_API_URL, centralAuthApiUrl)
+      : embeddedLocalCloud
+        ? () => embeddedLocalCloud.resolveMobileConnectApiUrl()
+        : readMobileConnectApiUrl(undefined, centralAuthApiUrl),
     storagePath: join(app.getPath("userData"), CENTRAL_AUTH_FILE),
     ...safeStorageCipher("error.app.macSecureStorageUnavailable"),
     keyringChanged: () => secretStorage().madeKeyFile(),
